@@ -73,10 +73,14 @@ namespace {
 TF_DEFINE_PRIVATE_TOKENS(
     _tokens,
 
+    (null)
     (file)
     (opacity)
     (st)
     (varname)
+    (perturbation)
+    (Nw)
+    (Nst)
 
     (input)
     (output)
@@ -101,6 +105,8 @@ TF_DEFINE_PRIVATE_TOKENS(
 
     (UsdPrimvarReader_color)
     (UsdPrimvarReader_vector)
+
+    (UsdPerturbNormals) // declare this somewhere else and re-use it? seems like it shouldn't be file local
 );
 // clang-format on
 
@@ -664,6 +670,59 @@ _LoadTexture(const std::string& path, bool& isColorSpaceSRGB, MFloatArray& uvSca
     return texture;
 }
 
+/*! \brief Insert the nodes and relationships necessary for normal mapping
+ */
+void _AddNormalMapNodes(
+    HdMaterialNetwork&            outNet,
+    HdMaterialNetwork&            inNet,
+    const HdMaterialNode&         node,
+    const HdMaterialRelationship& rel,
+    size_t&                       nodeCounter)
+{
+    // Insert a UsdPerturbNormals node between the UsdUVTexture node & whatever it is
+    // connected to so that the normal map can be applied correctly. This really assumes we are connecting to
+    // UsdPerviewSurface because we know to remap the connection from "normal" to "Nw".
+    //
+    // Before connections:
+    //   UsdPrimvarReader_float2.output -> UsdUVTexture.st (normal texture)
+    //   UsdUVTexture.rgb               -> UsdPreviewSurface.normal
+    //
+    // After Connections:
+    //   UsdPrimvarReader_float2.output -> UsdUVTexture.st (normal texture)
+    //   UsdPrimvarReader_float2.output -> UsdPreviewSurface.Nst
+    //   UsdUVTexture.output            -> UsdPreviewSurface.perturbation
+    // Connect the normal texture output to perturb normals
+    HdMaterialRelationship newRel
+        = { rel.inputId, _tokens->output, rel.outputId, _tokens->perturbation };
+    outNet.relationships.push_back(newRel);
+
+    // UsdPerturbNormals requires the normals primvar as an input
+    if (std::find(outNet.primvars.begin(), outNet.primvars.end(), HdTokens->normals)
+        == outNet.primvars.end())
+        outNet.primvars.push_back(HdTokens->normals);
+
+    // UsdPerturbNormals requires the positions primvar as an input
+    if (std::find(outNet.primvars.begin(), outNet.primvars.end(), HdTokens->points)
+        == outNet.primvars.end())
+        outNet.primvars.push_back(HdTokens->points);
+
+    // Find the relationship between the UsdPrimvarReader_float2 -> UsdUVTexture.st
+    for (HdMaterialRelationship& stRel : inNet.relationships) {
+        if (stRel.outputId != node.path || stRel.outputName != _tokens->st) {
+            continue;
+        }
+        // This is the relationship we are interested in
+
+        // Connect the primvar reader to the perturb normals node
+        HdMaterialRelationship newRel
+            = { stRel.inputId, stRel.inputName, rel.outputId, _tokens->Nst };
+
+        outNet.relationships.push_back(newRel);
+    }
+
+    // WK_TODO: add something that causes the NormalModelToView fragment to get added.
+}
+
 } // anonymous namespace
 
 /*! \brief  Releases the reference to the texture owned by a smart pointer.
@@ -885,9 +944,17 @@ void HdVP2Material::_ApplyVP2Fixes(HdMaterialNetwork& outNet, const HdMaterialNe
             nodeToChange.identifier = _tokens->UsdPrimvarReader_color;
         }
 
-        // Copy outgoing connections and if needed add passthrough node/connection.
+        // Copy outgoing connections and if needed add passthrough node/connection
+        // or normal map node
         for (const HdMaterialRelationship& rel : tmpNet.relationships) {
             if (rel.inputId != node.path) {
+                continue;
+            }
+
+            // First handle normal map.
+            if (_IsUsdUVTexture(node) && rel.inputName == _tokens->rgb
+                && rel.outputName == HdPrimvarRoleTokens->normal) {
+                _AddNormalMapNodes(outNet, tmpNet, node, rel, nodeCounter);
                 continue;
             }
 
@@ -929,8 +996,11 @@ void HdVP2Material::_ApplyVP2Fixes(HdMaterialNetwork& outNet, const HdMaterialNe
         // shading, which is also the current behavior of USD/Hydra.
         // https://groups.google.com/d/msg/usd-interest/7epU16C3eyY/X9mLW9VFEwAJ
         if (node.identifier == UsdImagingTokens->UsdPreviewSurface) {
-            outNet.primvars.push_back(HdTokens->normals);
+            if (std::find(outNet.primvars.begin(), outNet.primvars.end(), HdTokens->normals)
+                == outNet.primvars.end())
+                outNet.primvars.push_back(HdTokens->normals);
         }
+
         // UsdImagingMaterialAdapter doesn't create primvar requirements as
         // expected. Workaround by manually looking up "varname" parameter.
         // https://groups.google.com/forum/#!msg/usd-interest/z-14AgJKOcU/1uJJ1thXBgAJ
@@ -1034,6 +1104,12 @@ MHWRender::MShaderInstance* HdVP2Material::_CreateShaderInstance(const HdMateria
                 .Msg("Failed to connect shader %s\n", node.path.GetText());
         }
     }
+
+    // WK_TODO: This should automatically get added because of something we add in
+    // _ApplyVP2Fixes.
+    if (shaderInstance)
+        // TODO: for now always add the fragment that computes Nv
+        shaderInstance->addInputFragment("NormalModelToView", "Nv", "Nv");
 
 #elif MAYA_API_VERSION >= 20190000
 

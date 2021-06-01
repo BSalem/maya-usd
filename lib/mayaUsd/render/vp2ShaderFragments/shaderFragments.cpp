@@ -74,6 +74,8 @@ TF_DEFINE_PRIVATE_TOKENS(
     (UsdPrimvarColor)
 
     (UsdUVTexture)
+    (UsdPerturbNormals)
+    (NormalModelToView)
 
     (UsdPrimvarReader_color)
     (UsdPrimvarReader_float)
@@ -103,6 +105,8 @@ static const TfTokenVector _FragmentNames = { _tokens->BasisCurvesCubicColorDoma
                                               _tokens->UsdPrimvarColor,
 
                                               _tokens->UsdUVTexture,
+                                              _tokens->UsdPerturbNormals,
+                                              _tokens->NormalModelToView,
 
                                               _tokens->UsdPrimvarReader_color,
                                               _tokens->UsdPrimvarReader_float,

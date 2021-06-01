@@ -1,0 +1,200 @@
+<!--
+========================================================================
+Copyright 2021 Autodesk
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+========================================================================
+-->
+<fragment uiName="UsdPerturbNormals" name="UsdPerturbNormals" type="plumbing" class="ShadeFragment" version="1.0" feature_level="0">
+    <description>
+        <![CDATA[VP2 implementation for UsdPerturbNormals.]]>
+    </description>
+    <properties>
+        <float4 name="perturbation" />
+        <float3 name="Nv" semantic="TEXTURE" flags="varyingInputParam"/>
+        <float2 name="Nst" />
+        <float3 name="Pv" semantic="Pv" flags="varyingInputParam"/>
+    </properties>
+    <values>
+        <float4 name="perturbation" value="0.0,0.0,0.0,0.0"/>
+        <float3 name="Nv" value="1.0,0.0,0.0"/>
+        <float2 name="Nst" value="0.0,0.0" />
+        <float3 name="Pv" value="5.0,5.0,5.0"/>
+    </values>
+    <outputs>
+        <float3 name="output" />
+    </outputs>
+    <implementation>
+        <implementation render="OGSRenderer" language="GLSL" lang_version="3.0">
+            <function_name val="UsdPerturbNormals" />
+            <source>
+                <![CDATA[
+vec3 UsdPerturbNormals(
+    vec4 perturbation,
+    vec3 Nv,
+    vec2 Nst,
+    vec3 Pv)
+{
+    // glsl Preview.NormalMapping in previewSurface.glslfx
+    vec3 Nt = normalize(perturbation.xyz);
+    vec3 P = Pv;
+    vec3 N = Nv;
+    vec2 st = Nst * vec2(1, -1) + vec2(0, 1);
+
+    // Get screen space derivatives of position
+    vec3 dPdx = dFdx(P);
+    vec3 dPdy = dFdy(P);
+
+    // Ensure position derivatives are perpendicular to N
+    vec3 sigmaX = dPdx - dot(dPdx, N) * N;
+    vec3 sigmaY = dPdy - dot(dPdy, N) * N;
+
+    float flipSign = dot(dPdy, cross(N, dPdx)) < 0 ? -1 : 1;
+
+    // Get screen space derivatives of st
+    vec2 dSTdx = dFdx(st);
+    vec2 dSTdy = dFdy(st);
+
+    // Get determinant and determinant sign of st matrix
+    float det = dot(dSTdx, vec2(dSTdy.y, -dSTdy.x));
+    float signDet = det < 0 ? -1 : 1;
+
+    // Get first column of inv st matrix
+    // Don't divide by det, but scale by its sign
+    vec2 invC0 = signDet * vec2(dSTdy.y, -dSTdx.y);
+
+    vec3 T = sigmaX * invC0.x + sigmaY * invC0.y;
+
+    if (abs(det) > 0) {
+        T = normalize(T);
+    }
+
+    vec3 B = (signDet * flipSign) * cross(N, T);
+
+    mat3 TBN = mat3(T, B, N);
+    return normalize(TBN * Nt);
+    //return P; it is close! the "center" of the color is not in the center of the viewport, but towards the top right
+    //return N; it is just black still :(
+    //return P; close but still not centered
+    //return N;
+}
+                ]]>
+            </source>
+        </implementation>
+        <implementation render="OGSRenderer" language="HLSL" lang_version="11.0">
+            <function_name val="UsdPerturbNormals" />
+            <source>
+                <![CDATA[
+float3 UsdPerturbNormals(
+    float4 perturbation,
+    float3 Nw,
+    float2 Nst,
+    float3 Pw)
+{
+    // glsl Preview.NormalMapping in previewSurface.glslfx
+    float3 Nt = normalize(perturbation.xyz);
+    float3 P = Pw;
+    float3 N = Nw;
+    float2 st = Nst;// * float2(1, -1) + float2(0, 1);
+
+    // Get screen space derivatives of position
+    float3 dPdx = ddx(P);
+    float3 dPdy = ddy(P);
+
+    // Ensure position derivatives are perpendicular to N
+    float3 sigmaX = dPdx - dot(dPdx, N) * N;
+    float3 sigmaY = dPdy - dot(dPdy, N) * N;
+
+    float flipSign = dot(dPdy, cross(N, dPdx)) < 0 ? -1 : 1;
+
+    // Get screen space derivatives of st
+    float2 dSTdx = ddx(st);
+    float2 dSTdy = ddy(st);
+
+    // Get determinant and determinant sign of st matrix
+    float det = dot(dSTdx, float2(dSTdy.y, -dSTdy.x));
+    float signDet = det < 0 ? -1 : 1;
+
+    // Get first column of inv st matrix
+    // Don't divide by det, but scale by its sign
+    float2 invC0 = signDet * float2(dSTdy.y, -dSTdx.y);
+
+    float3 T = sigmaX * invC0.x + sigmaY * invC0.y;
+
+    if (abs(det) > 0) {
+        T = normalize(T);
+    }
+
+    float3 B = (signDet * flipSign) * cross(N, T);
+
+    float3x3 TBN = {T, B, N};
+    return normalize(mul(TBN, Nt));
+}
+                ]]>
+            </source>
+        </implementation>
+        <implementation render="OGSRenderer" language="Cg" lang_version="2.1">
+            <function_name val="UsdPerturbNormals" />
+            <source>
+                <![CDATA[
+float3 UsdPerturbNormals(
+    float4 perturbation,
+    float3 Nw,
+    float2 Nst,
+    float3 Pw)
+{
+    // glsl Preview.NormalMapping in previewSurface.glslfx
+    float3 Nt = normalize(perturbation.xyz);
+    float3 P = Pw;
+    float3 N = Nw;
+    float2 st = Nst * float2(1, -1) + float2(0, 1);;
+
+    // Get screen space derivatives of position
+    float3 dPdx = ddx(P);
+    float3 dPdy = ddy(P);
+
+    // Ensure position derivatives are perpendicular to N
+    float3 sigmaX = dPdx - dot(dPdx, N) * N;
+    float3 sigmaY = dPdy - dot(dPdy, N) * N;
+
+    float flipSign = dot(dPdy, cross(N, dPdx)) < 0 ? -1 : 1;
+
+    // Get screen space derivatives of st
+    float2 dSTdx = ddx(st);
+    float2 dSTdy = ddy(st);
+
+    // Get determinant and determinant sign of st matrix
+    float det = dot(dSTdx, float2(dSTdy.y, -dSTdy.x));
+    float signDet = det < 0 ? -1 : 1;
+
+    // Get first column of inv st matrix
+    // Don't divide by det, but scale by its sign
+    float2 invC0 = signDet * float2(dSTdy.y, -dSTdx.y);
+
+    float3 T = sigmaX * invC0.x + sigmaY * invC0.y;
+
+    if (abs(det) > 0) {
+        T = normalize(T);
+    }
+
+    float3 B = (signDet * flipSign) * cross(N, T);
+
+    float3x3 TBN = float3x3(T, B, N);
+    return normalize(TBN * Nt);
+} 
+                ]]>
+            </source>
+        </implementation>
+    </implementation>
+</fragment>
+

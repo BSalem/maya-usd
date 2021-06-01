@@ -47,6 +47,7 @@ list(APPEND SHADERFRAGMENTS_XMLS
     FallbackShader.xml
     Float4ToFloat3.xml
     Float4ToFloat4.xml
+    NormalModelToView.xml
     NwFaceCameraIfNAN.xml
     UsdPrimvarColor.xml
     UsdPrimvarReader_color.xml
@@ -56,6 +57,7 @@ list(APPEND SHADERFRAGMENTS_XMLS
     UsdPrimvarReader_float4.xml
     UsdPrimvarReader_vector.xml
     UsdUVTexture.xml
+    UsdPerturbNormals.xml
     # USD plug info
     plugInfo.json
 )

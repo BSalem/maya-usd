@@ -1,0 +1,161 @@
+<!--
+========================================================================
+Copyright 2021 Autodesk
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+========================================================================
+-->
+<fragment uiName="NormalModelToView" name="NormalModelToView" type="interpolant" class="ShadeFragment" version="1.0" feature_level="0">
+    <description>
+        <![CDATA[Generate view space normals in the vertex shader]]>
+    </description>
+    <properties>
+        <float4x4 name="WorldViewIT" semantic="WorldView"/>
+        <float3 name="Nm" semantic="Nm" flags="varyingInputParam"/>
+    </properties>
+    <values>
+    </values>
+    <outputs>
+        <float3 name="Nv" semantic="TEXTURE"/>
+    </outputs>
+    <implementation>
+        <implementation render="OGSRenderer" language="GLSL" lang_version="3.0">
+            <function_name val="NormalModelToView" />
+            <vertex_source>
+                <![CDATA[
+vec3 iNormalModelToView(
+    mat4 WorldViewIT,
+    vec3 Nm)
+{
+    return (transpose(inverse(WorldViewIT)) * vec4(Nm, 0.0)).xyz;
+    //return Nm;
+    //return (WorldViewIT[3].xyz); //column, row
+}
+                ]]>
+            </vertex_source>
+            <source>
+                <![CDATA[
+vec3 NormalModelToView(
+    vec3 iNv)
+{
+    return normalize(iNv);
+}
+                ]]>
+            </source>
+        </implementation>
+        <implementation render="OGSRenderer" language="HLSL" lang_version="11.0">
+            <function_name val="NormalModelToView" />
+            <source>
+                <![CDATA[
+float3 NormalModelToView(
+    float4 perturbation,
+    float3 Nw,
+    float2 Nst,
+    float3 Pw)
+{
+    // glsl Preview.NormalMapping in previewSurface.glslfx
+    float3 Nt = normalize(perturbation.xyz);
+    float3 P = Pw;
+    float3 N = Nw;
+    float2 st = Nst;// * float2(1, -1) + float2(0, 1);
+
+    // Get screen space derivatives of position
+    float3 dPdx = ddx(P);
+    float3 dPdy = ddy(P);
+
+    // Ensure position derivatives are perpendicular to N
+    float3 sigmaX = dPdx - dot(dPdx, N) * N;
+    float3 sigmaY = dPdy - dot(dPdy, N) * N;
+
+    float flipSign = dot(dPdy, cross(N, dPdx)) < 0 ? -1 : 1;
+
+    // Get screen space derivatives of st
+    float2 dSTdx = ddx(st);
+    float2 dSTdy = ddy(st);
+
+    // Get determinant and determinant sign of st matrix
+    float det = dot(dSTdx, float2(dSTdy.y, -dSTdy.x));
+    float signDet = det < 0 ? -1 : 1;
+
+    // Get first column of inv st matrix
+    // Don't divide by det, but scale by its sign
+    float2 invC0 = signDet * float2(dSTdy.y, -dSTdx.y);
+
+    float3 T = sigmaX * invC0.x + sigmaY * invC0.y;
+
+    if (abs(det) > 0) {
+        T = normalize(T);
+    }
+
+    float3 B = (signDet * flipSign) * cross(N, T);
+
+    float3x3 TBN = {T, B, N};
+    return normalize(mul(TBN, Nt));
+}
+                ]]>
+            </source>
+        </implementation>
+        <implementation render="OGSRenderer" language="Cg" lang_version="2.1">
+            <function_name val="NormalModelToView" />
+            <source>
+                <![CDATA[
+float3 NormalModelToView(
+    float4 perturbation,
+    float3 Nw,
+    float2 Nst,
+    float3 Pw)
+{
+    // glsl Preview.NormalMapping in previewSurface.glslfx
+    float3 Nt = normalize(perturbation.xyz);
+    float3 P = Pw;
+    float3 N = Nw;
+    float2 st = Nst * float2(1, -1) + float2(0, 1);;
+
+    // Get screen space derivatives of position
+    float3 dPdx = ddx(P);
+    float3 dPdy = ddy(P);
+
+    // Ensure position derivatives are perpendicular to N
+    float3 sigmaX = dPdx - dot(dPdx, N) * N;
+    float3 sigmaY = dPdy - dot(dPdy, N) * N;
+
+    float flipSign = dot(dPdy, cross(N, dPdx)) < 0 ? -1 : 1;
+
+    // Get screen space derivatives of st
+    float2 dSTdx = ddx(st);
+    float2 dSTdy = ddy(st);
+
+    // Get determinant and determinant sign of st matrix
+    float det = dot(dSTdx, float2(dSTdy.y, -dSTdy.x));
+    float signDet = det < 0 ? -1 : 1;
+
+    // Get first column of inv st matrix
+    // Don't divide by det, but scale by its sign
+    float2 invC0 = signDet * float2(dSTdy.y, -dSTdx.y);
+
+    float3 T = sigmaX * invC0.x + sigmaY * invC0.y;
+
+    if (abs(det) > 0) {
+        T = normalize(T);
+    }
+
+    float3 B = (signDet * flipSign) * cross(N, T);
+
+    float3x3 TBN = float3x3(T, B, N);
+    return normalize(TBN * Nt);
+} 
+                ]]>
+            </source>
+        </implementation>
+    </implementation>
+</fragment>
