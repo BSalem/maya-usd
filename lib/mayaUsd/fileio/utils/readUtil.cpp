@@ -68,7 +68,7 @@ bool UsdMayaReadUtil::ReadFloat2AsUV()
 
 TF_DEFINE_ENV_SETTING(
     MAYAUSD_IMPORT_PRIMARY_UV_SET_AS_MAP1,
-    false,
+    true,
     "Translates the primary UV set in USD to the map1 UV set in Maya. "
     "When disabled, UV set names are translated directly (st in USD becomes st in Maya).");
 

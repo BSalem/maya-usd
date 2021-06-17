@@ -83,7 +83,7 @@ TF_DEFINE_ENV_SETTING(
 
 TF_DEFINE_ENV_SETTING(
     MAYAUSD_EXPORT_MAP1_AS_PRIMARY_UV_SET,
-    false,
+    true,
     "Translates the map1 UV set in Maya to the primary UV set in USD. "
     "When disabled, UV set names are translated directly (map1 in Maya becomes map1 in USD).");
 
