@@ -163,7 +163,7 @@ bool UsdMaya_WriteJob::Write(const std::string& fileName, bool append)
     return true;
 }
 
-void removeDups(std::vector<std::string> &v)
+void UsdMaya_WriteJob::_RemoveDups(std::vector<std::string> &v)
 {
     auto end = v.end();
     for (auto it = v.begin(); it != end; ++it) {
@@ -305,7 +305,7 @@ bool UsdMaya_WriteJob::_BeginWriting(const std::string& fileName, bool append)
 
     // Assume selected objects are roots by themselves if an empty string is passed to root
     std::vector<std::string> tmpRootNames = mJobCtx.mArgs.rootNames;
-    if (mJobCtx.mArgs.exportSelected &! mJobCtx.mArgs.rootNames.empty()) {
+    if (mJobCtx.mArgs.exportSelected and !mJobCtx.mArgs.rootNames.empty()) {
         if (mJobCtx.mArgs.rootNames.size() == 1 && mJobCtx.mArgs.rootNames[0].empty()) {
             // It's faster to set all selected objects to roots without the below intensive string comp
             // in case when the empty string is passed alone with no other actual roots
@@ -430,7 +430,7 @@ bool UsdMaya_WriteJob::_BeginWriting(const std::string& fileName, bool append)
 
     // Prevent user mistakes, prevents duplicates resulted from indirect roots mixed with direct
     // passed roots (note: this might not be needed after we already made an accurate root(s) filtering above)
-    removeDups(mJobCtx.mArgs.rootNames);
+    _RemoveDups(mJobCtx.mArgs.rootNames);
 
     // when no roots are passed, tmpRootNames is {"|"} from above
     if (!(mJobCtx.mArgs.rootNames.empty() &! argDagPathParents.empty()))

@@ -75,6 +75,8 @@ private:
 
     bool _CheckNameClashes(const SdfPath& path, const MDagPath& dagPath);
 
+    void _RemoveDups(std::vector<std::string> &v);
+
     // Name of the created/appended USD file
     std::string _fileName;
 

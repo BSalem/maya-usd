@@ -321,8 +321,8 @@ MStatus MayaUSDExportCommand::doIt(const MArgList& args)
             MDagPath dagPath;
             UsdMayaUtil::GetDagPathByName(this_root, dagPath);
             if (!dagPath.isValid() && tmpArgList.asString(0) != "|" && tmpArgList.asString(0) != "") {
-                MGlobal::displayError("Invalid root path: " + tmpArgList.asString(0));
-                return MS::kFailure;
+                MGlobal::displayWarning("Invalid root path: " + tmpArgList.asString(0));
+                continue;
             }
             jobArgs.rootNames.emplace_back(this_root);
         }
