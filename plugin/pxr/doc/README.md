@@ -204,7 +204,7 @@ We reserve the prefix `USD_` for attributes that will be used by the USD exporte
 You can set the above attributes by hand, but an easier way is to use the Python "adaptor" helpers provided with UsdMaya. They provide an API that is similar to working with the USD API (but note that it's not 100% the same). For example, to set the `kind` metadata on a node in Maya, you can do the following:
 
 ```python
-from pxr import UsdMaya
+import UsdMaya
 UsdMaya.Adaptor("|my|dag|path").SetMetadata("kind", "group") # set kind=group
 UsdMaya.Adaptor("|my|dag|path").ClearMetadata("kind") # clear kind
 ```

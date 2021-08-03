@@ -14,7 +14,7 @@
 # limitations under the License.
 #
 
-from pxr import UsdMaya
+import UsdMaya
 
 from maya import cmds
 from maya import mel
