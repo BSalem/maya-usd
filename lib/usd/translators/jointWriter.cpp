@@ -259,20 +259,20 @@ bool _GetLocalTransformForDagPoseMember(
     MStatus status;
 
     MPlug xformMatrixPlug = dagPoseDep.findPlug("xformMatrix");
-#if MAYA_API_VERSION >= 20190000
-    if (TfDebug::IsEnabled(PXRUSDMAYA_TRANSLATORS)) {
-        // As an extra debug sanity check, make sure that the logicalIndex
-        // already exists
-        MIntArray allIndices;
-        xformMatrixPlug.getExistingArrayAttributeIndices(allIndices);
-        if (std::find(allIndices.cbegin(), allIndices.cend(), logicalIndex) == allIndices.cend()) {
-            TfDebug::Helper().Msg(
-                "Warning - attempting to retrieve %s[%u], but that index did not exist yet",
-                xformMatrixPlug.name().asChar(),
-                logicalIndex);
-        }
-    }
-#endif
+//#if MAYA_API_VERSION >= 20190000
+//    if (TfDebug::IsEnabled(PXRUSDMAYA_TRANSLATORS)) {
+//        // As an extra debug sanity check, make sure that the logicalIndex
+//        // already exists
+//        MIntArray allIndices;
+//        xformMatrixPlug.getExistingArrayAttributeIndices(allIndices);
+//        if (std::find(allIndices.cbegin(), allIndices.cend(), logicalIndex) == allIndices.cend()) {
+//            TfDebug::Helper().Msg(
+//                "Warning - attempting to retrieve %s[%u], but that index did not exist yet",
+//                xformMatrixPlug.name().asChar(),
+//                logicalIndex);
+//        }
+//    }
+//#endif
     MPlug xformPlug = xformMatrixPlug.elementByLogicalIndex(logicalIndex, &status);
     CHECK_MSTATUS_AND_RETURN(status, false);
 
