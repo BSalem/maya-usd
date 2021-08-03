@@ -18,6 +18,8 @@ target_sources(${PROJECT_NAME}
         translatorUtil.cpp
         translatorXformable.cpp
         translatorXformable_decompose.cpp
+        NodeHelper.cpp
+        DgNodeHelper.cpp
 )
 
 set(HEADERS
@@ -35,6 +37,8 @@ set(HEADERS
     translatorSkel.h
     translatorUtil.h
     translatorXformable.h
+    NodeHelper.h
+    DgNodeHelper.h
 )
 
 # -----------------------------------------------------------------------------
